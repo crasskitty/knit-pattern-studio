@@ -21,6 +21,13 @@ export const MEASUREMENT_ORDER = [
   'seatBack',
   'waistToKnee',
   'waistToFloor',
+  'waistToUpperLeg',
+  'crossSeam',
+  'crossSeamFront',
+  'knee',
+  'waistBack',
+  'ankle',
+  'heel',
 ] as const
 
 export type MeasureCopy = {
@@ -115,7 +122,35 @@ export const MEASUREMENT_COPY: Record<string, MeasureCopy> = {
   },
   waistToFloor: {
     title: 'Waist to floor',
-    how: 'Vertical distance from the natural waist to the floor, barefoot. Optional. Floor length on this block is not a dress. If you leave it blank, Bibi estimates 2.5 times the back waist length.',
+    how: 'Vertical distance from the natural waist to the floor, barefoot. Optional on Bibi. Required for Lily. Floor length on Bibi is not a dress. If you leave it blank on Bibi, the block estimates 2.5 times the back waist length.',
+  },
+  waistToUpperLeg: {
+    title: 'Waist to upper leg',
+    how: 'Vertical distance from the natural waist down to the fullest part of the thigh.',
+  },
+  crossSeam: {
+    title: 'Cross seam',
+    how: 'From the centre-front waist, down through the crotch, up to the centre-back waist. Lily uses the full length.',
+  },
+  crossSeamFront: {
+    title: 'Cross seam front',
+    how: 'From the centre-front waist through the crotch to the inseam. The back portion is the rest of the cross seam.',
+  },
+  knee: {
+    title: 'Knee',
+    how: 'Circumference around the knee, leg relaxed, tape level.',
+  },
+  waistBack: {
+    title: 'Waist back',
+    how: 'Across the back at the waist, from side to side. It has to be smaller than the full waist.',
+  },
+  ankle: {
+    title: 'Ankle',
+    how: 'Circumference just above the ankle bone.',
+  },
+  heel: {
+    title: 'Heel',
+    how: 'Circumference around the heel and instep, the loop the legging hem has to pass over.',
   },
 }
 
@@ -150,6 +185,25 @@ export const OPTION_BLURB: Record<string, string> = {
   ribbingHeight: 'Ribbing height as a percent of back-waist length plus waist-to-hips.',
   bindingHeight:
     'Knit binding width for the neck and armhole, as a percent of back-waist length plus waist-to-hips. FreeSewing snaps the absolute width to 10, 15, 20, 25, or 30 mm.',
+  neckEase: 'How large Shelly’s neck hole is, as a percent of the neck measurement.',
+  neckBalance: 'Shifts Shelly’s neck hole toward the front. 0 is centered. The package default is 40.',
+  armpitEase: 'Drops the sleeve down the body, as a percent of the sleeve diameter.',
+  sleeveEase: 'Vertical ease around the armhole and shoulder. Shelly eases this toward the wrist.',
+  wristEase: 'Ease around the wrist. For short sleeves Shelly blends this with sleeve ease.',
+  straightSides: 'On makes a tube from the chest and ignores the hip ease. Package default is on.',
+  bodyLength: 'Body length as a percent of back-waist length plus waist-to-hips. Package default is 120.',
+  neckbandLength: 'Shelly’s neckband, as a percent of the drafted neck opening. Package default is 80.',
+  neckbandWidth: 'Neckband width as a percent of the neck measurement. The draft uses twice that for the folded band.',
+  hemWidth: 'Body hem allowance as a percent of the seam allowance. 200 means twice the seam allowance.',
+  sleeveHem: 'Sleeve hem allowance as a percent of the seam allowance.',
+  sideShape: 'Curves the side seam. Negative is concave, positive is convex.',
+  raglanScoopLength: 'How long the scoop along the raglan seam is, as a percent of the raglan length.',
+  raglanScoopMagnitude: 'How deep that scoop is, as a percent of the raglan length.',
+  fabricStretch:
+    'Lily’s horizontal fabric stretch, percent. The package wants waist, seat, and knee ease at this value divided by −10.',
+  kneeEase: 'Ease at the knee, as a percent of the knee measurement. Lily’s range is negative through zero.',
+  waistHeight: 'Where the waistband sits. 100 is the waist, 0 is the hips. Lily’s default is 50.',
+  waistbandWidth: 'Width of Lily’s waistband, as a percent.',
 }
 
 export const LENGTH_LABEL: Record<string, string> = {

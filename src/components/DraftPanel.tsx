@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
@@ -11,15 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { LengthField } from '@/components/LengthField'
 import { LENGTH_LABEL, OPTION_BLURB } from '@/lib/copy'
 import { exceedsCapacity, type EaseCapacity } from '@/lib/ease'
-import { type OptionSpec } from '@/lib/bibi'
+import { easeBandFor, type DesignId, type OptionSpec } from '@/lib/bibi'
 import type { DraftResult } from '@/lib/bibi'
-import { formatLength, formatMm, formatPercent, type Unit } from '@/lib/units'
+import { formatLength, formatPercent, type Unit } from '@/lib/units'
 
-const EASE_NAMES = ['chestEase', 'waistEase', 'hipsEase', 'seatEase']
+const EASE_NAMES = ['chestEase', 'waistEase', 'hipsEase', 'seatEase', 'kneeEase', 'neckEase', 'wristEase', 'sleeveEase']
 
 export function DraftPanel({
+  design,
   specs,
   missing,
   options,
@@ -29,8 +30,10 @@ export function DraftPanel({
   unit,
   capacity,
   onUseRange,
+  onMatchStretch,
   result,
 }: {
+  design: DesignId
   specs: OptionSpec[]
   missing: string[]
   options: Record<string, number | boolean | string>
@@ -40,6 +43,7 @@ export function DraftPanel({
   unit: Unit
   capacity: EaseCapacity | null
   onUseRange: (chestPct: number) => void
+  onMatchStretch: () => void
   result: DraftResult | null
 }) {
   const byName = new Map(specs.map((spec) => [spec.name, spec]))
@@ -57,6 +61,75 @@ export function DraftPanel({
   const showCuffRib = sleevesOn && sleevePct >= 5
   const showRibbing = options.useWaistRibbing === true || (showCuffRib && options.useCuffRibbing === true)
   const chest = byName.get('chestEase')
+  const band = easeBandFor(design)
+
+  if (design !== 'bibi') {
+    return (
+      <section className="space-y-5">
+        <header className="space-y-1">
+          <h2 className="font-heading text-lg font-semibold">{design === 'shelly' ? 'Shelly draft' : 'Lily draft'}</h2>
+          <p className="text-sm text-muted-foreground">
+            {design === 'shelly'
+              ? 'Raglan shirt from @freesewing/shelly. Controls are the real options. Raw constants armholeTweakFactor and bicepsPosition stay at the package values.'
+              : 'Leggings from @freesewing/lily. fabricStretch is the horizontal stretch option. Lumira also exists at 4.10.2; Lily is used because it has fabricStretch.'}
+          </p>
+        </header>
+        {missing.length > 0 && (
+          <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">
+            Missing from the installed config: {missing.join(', ')}.
+          </p>
+        )}
+        <ReductionCard design={design} result={result} unit={unit} />
+        {design === 'lily' && (
+          <Button type="button" variant="outline" size="sm" onClick={onMatchStretch}>
+            Set waist, seat, and knee ease to fabricStretch ÷ −10
+          </Button>
+        )}
+        <div className="space-y-3">
+          {specs.map((spec) =>
+            spec.kind === 'bool' ? (
+              <BoolControl
+                key={spec.name}
+                spec={spec}
+                value={options[spec.name] !== false && options[spec.name] !== 0}
+                onChange={(value) => onOption(spec.name, value)}
+              />
+            ) : spec.kind === 'list' ? (
+              <ListControl
+                key={spec.name}
+                spec={spec}
+                value={String(options[spec.name] ?? spec.dflt)}
+                onChange={(value) => onOption(spec.name, value)}
+              />
+            ) : (
+              <PctControl
+                key={spec.name}
+                spec={spec}
+                value={Number(options[spec.name] ?? spec.pct)}
+                disabled={spec.name === 'hipsEase' && options.straightSides !== false}
+                note={
+                  spec.name === 'hipsEase' && options.straightSides !== false
+                    ? 'Ignored while straightSides is on. Shelly uses chest ease for the hips.'
+                    : undefined
+                }
+                capacity={capacity}
+                band={band}
+                result={result}
+                unit={unit}
+                onChange={(value) => onOption(spec.name, value)}
+              />
+            ),
+          )}
+        </div>
+        {design === 'shelly' && options.straightSides !== false && (
+          <p className="text-xs text-muted-foreground">
+            straightSides is on, so Shelly drafts the hips from chest ease and ignores hipsEase.
+          </p>
+        )}
+        <SaField saMm={saMm} onSa={onSa} unit={unit} />
+      </section>
+    )
+  }
 
   return (
     <section className="space-y-5">
@@ -82,6 +155,7 @@ export function DraftPanel({
         </p>
       </div>
 
+      <ReductionCard design={design} result={result} unit={unit} />
       {capacity && chest && (
         <CapacityCard capacity={capacity} chestMin={chest.min} onUseRange={onUseRange} />
       )}
@@ -104,7 +178,9 @@ export function DraftPanel({
               disabled={disabled}
               note={disabled ? 'Not applied while fit waist is off. Bibi hides this control in that case.' : undefined}
               capacity={capacity}
+              band="fittedTop"
               result={result}
+              unit={unit}
               onChange={(value) => onOption(name, value)}
             />
           )
@@ -124,6 +200,8 @@ export function DraftPanel({
             spec={byName.get('bustEase')}
             value={Number(options.bustEase ?? 0)}
             result={result}
+            unit={unit}
+            band="fittedTop"
             onChange={(value) => onOption('bustEase', value)}
           />
         )}
@@ -137,12 +215,14 @@ export function DraftPanel({
               spec={byName.get('sleeveLength')}
               value={sleevePct}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('sleeveLength', value)}
             />
             <PctControl
               spec={byName.get('cuffEase')}
               value={Number(options.cuffEase ?? 20)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('cuffEase', value)}
             />
           </>
@@ -152,24 +232,28 @@ export function DraftPanel({
               spec={byName.get('strapWidth')}
               value={Number(options.strapWidth ?? 40)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('strapWidth', value)}
             />
             <PctControl
               spec={byName.get('armholeCurveFront')}
               value={Number(options.armholeCurveFront ?? 15)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('armholeCurveFront', value)}
             />
             <PctControl
               spec={byName.get('armholeCurveBack')}
               value={Number(options.armholeCurveBack ?? 30)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('armholeCurveBack', value)}
             />
             <PctControl
               spec={byName.get('armholeDropBack')}
               value={Number(options.armholeDropBack ?? 20)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('armholeDropBack', value)}
             />
           </>
@@ -187,6 +271,7 @@ export function DraftPanel({
           spec={byName.get('lengthBonus')}
           value={lengthBonus}
           result={result}
+          unit={unit}
           onChange={(value) => onOption('lengthBonus', value)}
         />
         <PctControl
@@ -195,6 +280,7 @@ export function DraftPanel({
           disabled={!showFlare}
           note={showFlare ? undefined : 'Flare stays at 0 until the hem is below the waist. That matches Bibi’s menu rule.'}
           result={result}
+          unit={unit}
           onChange={(value) => onOption('flare', value)}
         />
       </Group>
@@ -206,6 +292,7 @@ export function DraftPanel({
             spec={byName.get(name)}
             value={Number(options[name] ?? 0)}
             result={result}
+            unit={unit}
             onChange={(value) => onOption(name, value)}
           />
         ))}
@@ -233,12 +320,14 @@ export function DraftPanel({
               spec={byName.get('ribbingStretch')}
               value={Number(options.ribbingStretch ?? 15)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('ribbingStretch', value)}
             />
             <PctControl
               spec={byName.get('ribbingHeight')}
               value={Number(options.ribbingHeight ?? 10)}
               result={result}
+              unit={unit}
               onChange={(value) => onOption('ribbingHeight', value)}
             />
           </>
@@ -247,6 +336,7 @@ export function DraftPanel({
           spec={byName.get('bindingHeight')}
           value={Number(options.bindingHeight ?? 2.5)}
           result={result}
+          unit={unit}
           onChange={(value) => onOption('bindingHeight', value)}
         />
         <p className="text-xs text-muted-foreground">
@@ -254,33 +344,7 @@ export function DraftPanel({
         </p>
       </Group>
 
-      <Group title="Seam allowance">
-        <div className="space-y-1.5">
-          <Label htmlFor="sa">Seam allowance</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="sa"
-              className="max-w-28"
-              type="number"
-              min={0}
-              max={25}
-              step={unit === 'cm' ? 1 : 0.5}
-              value={unit === 'cm' ? saMm : Math.round((saMm / 25.4) * 100) / 100}
-              onChange={(event) => {
-                const next = Number(event.target.value)
-                if (!Number.isFinite(next)) return
-                const mm = unit === 'cm' ? next : next * 25.4
-                onSa(Math.min(25, Math.max(0, mm)))
-              }}
-            />
-            <span className="text-sm text-muted-foreground">{unit === 'cm' ? 'mm' : 'in'}</span>
-          </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Not a Bibi option. FreeSewing 4 reads <span className="font-medium">settings.sa</span> in millimetres. Blank settings draw no seam allowance. This studio sends {formatMm(saMm, 1)}.
-            {unit === 'in' ? ` That is ${formatLength(saMm, 'in')}.` : ''}
-          </p>
-        </div>
-      </Group>
+      <SaField saMm={saMm} onSa={onSa} unit={unit} />
     </section>
   )
 }
@@ -348,6 +412,8 @@ function PctControl({
   note,
   capacity,
   result,
+  unit,
+  band = 'fittedTop',
 }: {
   spec: OptionSpec | undefined
   value: number
@@ -356,12 +422,15 @@ function PctControl({
   note?: string
   capacity?: EaseCapacity | null
   result: DraftResult | null
+  unit: Unit
+  band?: 'fittedTop' | 'leggings'
 }) {
   if (!spec || spec.kind !== 'pct') return null
   const applied = result ? result.options[spec.name] : null
   const appliedPct = typeof applied === 'number' ? applied * 100 : value
   const absolute = result?.absoluteOptions[spec.name]
-  const warn = !!capacity && EASE_NAMES.includes(spec.name) && !disabled && exceedsCapacity(appliedPct, capacity)
+  const warn = !!capacity && EASE_NAMES.includes(spec.name) && !disabled && exceedsCapacity(appliedPct, capacity, band)
+  const range = capacity ? capacity[band] : null
   return (
     <div className={`space-y-1.5 ${disabled ? 'opacity-60' : ''}`}>
       <div className="flex items-baseline justify-between gap-2">
@@ -381,12 +450,12 @@ function PctControl({
       <p className="text-xs">
         Package default {formatPercent(spec.pct, spec.pct % 1 === 0 ? 0 : 1)}, range {formatPercent(spec.min, 0)} to {formatPercent(spec.max, 0)}.
         {' '}Applied {formatPercent(appliedPct)}
-        {typeof absolute === 'number' ? ` · ${formatMm(absolute, 1)} absolute` : ''}.
+        {typeof absolute === 'number' ? ` · ${formatLength(absolute, unit)} absolute` : ''}.
       </p>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
-      {warn && capacity && (
+      {warn && range && (
         <p className="text-xs text-destructive">
-          {formatPercent(appliedPct)} is more negative than this fabric’s fitted range of {formatPercent(capacity.fittedTop.moreNegative)} to {formatPercent(capacity.fittedTop.closerToZero)}. The draft still uses {formatPercent(appliedPct)}. Confirm it on a muslin.
+          {formatPercent(appliedPct)} is more negative than this fabric’s {band === 'leggings' ? 'leggings' : 'fitted top'} range of {formatPercent(range.moreNegative)} to {formatPercent(range.closerToZero)}. The draft still uses {formatPercent(appliedPct)}. Confirm it on a muslin.
         </p>
       )}
     </div>
@@ -442,6 +511,66 @@ function ListControl({
       </Select>
       <p className="text-xs text-muted-foreground">{OPTION_BLURB[spec.name]}</p>
       <p className="text-xs">Package default {spec.dflt}. Applied {value}.</p>
+    </div>
+  )
+}
+
+function ReductionCard({ design, result, unit }: { design: DesignId; result: DraftResult | null; unit: Unit }) {
+  const reduction = result?.reduction
+  if (!reduction) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Vertical length reduction appears with the draft. It uses lengthwise stretch and only runs for a 4-way fabric.
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-2 rounded-lg border bg-card p-3 text-sm leading-relaxed">
+      <p className="font-medium">4-way vertical length reduction</p>
+      <p>{reduction.reason}</p>
+      <ul className="space-y-1 text-xs sm:text-sm">
+        <li>Lengthwise stretch {formatPercent(reduction.lengthwisePct)} · scale {reduction.lengthwiseScale.toFixed(3)}</li>
+        <li>Full reduction if every bit of that stretch were used: {formatPercent(reduction.fullReductionPct)}</li>
+        <li>
+          Working reduction, half of that times recovery {reduction.recoveryFactor.toFixed(2)}: {formatPercent(reduction.appliedPct)}
+        </li>
+      </ul>
+      {result.lengths.length > 0 ? (
+        <ul className="space-y-1 text-xs">
+          {result.lengths.map((row) => (
+            <li key={row.name}>
+              {row.name}: {formatLength(row.originalMm, unit)} → {formatLength(row.appliedMm, unit)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs">No vertical length was changed. Applied reduction {formatPercent(reduction.appliedPct)}.</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {design === 'lily'
+          ? 'This percent is sent as Lily’s lengthReduction option, which shortens the leg from waistToFloor.'
+          : 'Bibi and Shelly have no lengthReduction option, so this percent shortens the vertical measurements before the draft.'}{' '}
+        Ease percentages stay percentages.
+      </p>
+    </div>
+  )
+}
+
+function SaField({ saMm, onSa, unit }: { saMm: number; onSa: (mm: number) => void; unit: Unit }) {
+  return (
+    <div className="space-y-1">
+      <LengthField
+        id="sa"
+        label="Seam allowance"
+        mm={saMm}
+        unit={unit}
+        onMm={(mm) => {
+          if (mm == null) return
+          onSa(Math.min(25.4, Math.max(0, mm)))
+        }}
+        hint="Not a design option. FreeSewing reads settings.sa in millimetres. A fresh browser starts at 3/8 in (9.525 mm). The field shows that length in the active unit, and the draft receives the millimetre value."
+      />
+      <p className="text-xs">FreeSewing receives {saMm} mm, which is {formatLength(saMm, unit)}.</p>
     </div>
   )
 }

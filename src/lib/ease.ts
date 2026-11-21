@@ -74,6 +74,99 @@ export function easeCapacity(input: {
   }
 }
 
-export function exceedsCapacity(appliedPct: number, capacity: EaseCapacity): boolean {
-  return appliedPct < capacity.fittedTop.moreNegative - 0.05
+export function exceedsCapacity(appliedPct: number, capacity: EaseCapacity, band: 'fittedTop' | 'leggings' = 'fittedTop'): boolean {
+  return appliedPct < capacity[band].moreNegative - 0.05
+}
+
+/** Straight distances shortened for 4-way fabric. Circumferences are not in this list. */
+export const VERTICAL_MEASUREMENTS = [
+  'hpsToBust',
+  'hpsToWaistBack',
+  'hpsToWaistFront',
+  'shoulderToElbow',
+  'shoulderToWrist',
+  'waistToArmpit',
+  'waistToUnderbust',
+  'waistToHips',
+  'waistToSeat',
+  'waistToUpperLeg',
+  'waistToKnee',
+  'waistToFloor',
+  'crotchDepth',
+  'inseam',
+] as const
+
+export const VERTICAL_REDUCTION_SHARE = 0.5
+
+export type VerticalReduction = {
+  applies: boolean
+  reason: string
+  lengthwisePct: number
+  lengthwiseScale: number
+  fullReductionPct: number
+  recoveryFactor: number
+  appliedPct: number
+}
+
+export function verticalReduction(input: {
+  direction: '2-way' | '4-way'
+  lengthwisePct: number
+  recoveredCm: number
+} | null): VerticalReduction {
+  if (!input) {
+    return {
+      applies: false,
+      reason: 'Choose a saved fabric to calculate a vertical reduction.',
+      lengthwisePct: 0,
+      lengthwiseScale: 1,
+      fullReductionPct: 0,
+      recoveryFactor: 1,
+      appliedPct: 0,
+    }
+  }
+  const lengthwise = Math.max(0, input.lengthwisePct) / 100
+  const scale = stretchToScale(lengthwise)
+  const fullReductionPct = (1 - scale) * 100
+  const factor = recoveryFactor(input.recoveredCm)
+  if (input.direction !== '4-way') {
+    return {
+      applies: false,
+      reason: 'This fabric is 2-way, so the draft is not shortened lengthwise.',
+      lengthwisePct: input.lengthwisePct,
+      lengthwiseScale: scale,
+      fullReductionPct,
+      recoveryFactor: factor,
+      appliedPct: 0,
+    }
+  }
+  return {
+    applies: true,
+    reason: 'Starting point for a 4-way knit. Confirm the shorter length on a muslin.',
+    lengthwisePct: input.lengthwisePct,
+    lengthwiseScale: scale,
+    fullReductionPct,
+    recoveryFactor: factor,
+    appliedPct: fullReductionPct * VERTICAL_REDUCTION_SHARE * factor,
+  }
+}
+
+/** Stretch-test gauge. 10 cm and 4 in are the same nominal mark, not a 25.4 conversion. */
+export function gaugeCm(): number {
+  return GAUGE_CM
+}
+
+export function gaugeInUnit(unit: 'cm' | 'in'): number {
+  return unit === 'cm' ? GAUGE_CM : 4
+}
+
+export function poorRecoveryInUnit(unit: 'cm' | 'in'): number {
+  return unit === 'cm' ? POOR_RECOVERY_CM : (POOR_RECOVERY_CM / GAUGE_CM) * 4
+}
+
+export function recoveredToDisplay(recoveredCm: number, unit: 'cm' | 'in'): number {
+  return (recoveredCm / GAUGE_CM) * gaugeInUnit(unit)
+}
+
+export function displayToRecovered(display: number, unit: 'cm' | 'in'): number {
+  return (display / gaugeInUnit(unit)) * GAUGE_CM
 }

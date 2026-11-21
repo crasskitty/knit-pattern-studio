@@ -1,11 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { easeCapacity, POOR_RECOVERY_CM, stretchPercentFromMark } from '@/lib/ease'
+import {
+  displayToRecovered,
+  easeCapacity,
+  gaugeInUnit,
+  poorRecoveryInUnit,
+  recoveredToDisplay,
+} from '@/lib/ease'
+import { parseInches, parseCentimetres } from '@/lib/fractions'
 import type { Fabric, FabricDirection } from '@/lib/storage'
-import { formatPercent } from '@/lib/units'
+import { formatPercent, type Unit } from '@/lib/units'
 
 type Draft = Omit<Fabric, 'id'>
 
@@ -21,12 +28,14 @@ const blank = (): Draft => ({
 export function FabricPanel({
   fabrics,
   selectedId,
+  unit,
   onSave,
   onDelete,
   onSelect,
 }: {
   fabrics: Fabric[]
   selectedId: string | null
+  unit: Unit
   onSave: (fabric: Fabric) => void
   onDelete: (id: string) => void
   onSelect: (id: string) => void
@@ -101,13 +110,13 @@ export function FabricPanel({
           <ol className="list-decimal space-y-2 border-t px-7 py-3 text-sm leading-relaxed">
             <li>Wash and dry the fabric the way the garment will be worn.</li>
             <li>Fold along the greatest stretch, a few inches in from the selvage.</li>
-            <li>Mark 10 cm, which is also 4 in.</li>
+            <li>Mark {unit === 'in' ? '4 in' : '10 cm'}. Those two marks are the same test, not a converted length.</li>
             <li>Hold the left mark at a ruler. Stretch until the fabric resists. Stop before it thins.</li>
             <li>
-              Record where the right mark lands. 15 cm is 50% stretch. Percent is (landed − 10) ÷ 10 × 100.
+              Record where the right mark lands. One and a half times the mark is 50% stretch. Percent is (landed − mark) ÷ mark × 100.
             </li>
             <li>
-              Let go and measure the marks again. If they are still {POOR_RECOVERY_CM} cm or more, recovery is poor.
+              Let go and measure the marks again. If they are still {poorRecoveryInUnit(unit)} {unit} or more, recovery is poor.
             </li>
             <li>Repeat along the length. Stretch both ways is 4-way. Stretch one way is 2-way.</li>
           </ol>
@@ -130,7 +139,7 @@ export function FabricPanel({
                     <span className="block font-medium">{fabric.name}</span>
                     <span className="mt-1 block text-xs text-muted-foreground">
                       {fabric.direction} · crosswise {formatPercent(fabric.crosswisePct, 0)} · lengthwise{' '}
-                      {formatPercent(fabric.lengthwisePct, 0)} · recovered {fabric.recoveredCm} cm
+                      {formatPercent(fabric.lengthwisePct, 0)} · recovered {recoveredToDisplay(fabric.recoveredCm, unit).toFixed(2)} {unit}
                       {capacity.poorRecovery ? ' · poor recovery' : ''}
                     </span>
                   </button>
@@ -196,28 +205,27 @@ export function FabricPanel({
         <div className="grid gap-3 sm:grid-cols-2">
           <MarkField
             id="cross-mark"
-            label="Crosswise mark landed"
-            onLanded={(cm) => setForm({ ...form, crosswisePct: round1(stretchPercentFromMark(cm)) })}
+            label={`Crosswise mark landed (${unit})`}
+            unit={unit}
+            onLanded={(value) =>
+              setForm({ ...form, crosswisePct: round1(((value - gaugeInUnit(unit)) / gaugeInUnit(unit)) * 100) })
+            }
           />
           <MarkField
             id="length-mark"
-            label="Lengthwise mark landed"
-            onLanded={(cm) => setForm({ ...form, lengthwisePct: round1(stretchPercentFromMark(cm)) })}
+            label={`Lengthwise mark landed (${unit})`}
+            unit={unit}
+            onLanded={(value) =>
+              setForm({ ...form, lengthwisePct: round1(((value - gaugeInUnit(unit)) / gaugeInUnit(unit)) * 100) })
+            }
           />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="recovered">Recovered length (cm)</Label>
-            <Input
-              id="recovered"
-              type="number"
-              min={9}
-              max={16}
-              step={0.1}
-              value={form.recoveredCm}
-              onChange={(event) => setForm({ ...form, recoveredCm: Number(event.target.value) })}
-            />
-          </div>
+          <RecoveredField
+            unit={unit}
+            recoveredCm={form.recoveredCm}
+            onChange={(recoveredCm) => setForm({ ...form, recoveredCm })}
+          />
           <div className="space-y-1.5">
             <Label htmlFor="direction">Direction</Label>
             <select
@@ -285,20 +293,67 @@ function PercentField({
   )
 }
 
-function MarkField({ id, label, onLanded }: { id: string; label: string; onLanded: (cm: number) => void }) {
+function MarkField({
+  id,
+  label,
+  unit,
+  onLanded,
+}: {
+  id: string
+  label: string
+  unit: Unit
+  onLanded: (value: number) => void
+}) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label} (cm)</Label>
+      <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
-        type="number"
-        min={10}
-        max={30}
-        step={0.1}
-        placeholder="15"
+        placeholder={unit === 'in' ? '6' : '15'}
         onChange={(event) => {
-          if (event.target.value === '') return
-          onLanded(Number(event.target.value))
+          const parsed = unit === 'in' ? parseInches(event.target.value) : parseCentimetres(event.target.value)
+          if (parsed == null) return
+          onLanded(parsed)
+        }}
+      />
+    </div>
+  )
+}
+
+function RecoveredField({
+  unit,
+  recoveredCm,
+  onChange,
+}: {
+  unit: Unit
+  recoveredCm: number
+  onChange: (recoveredCm: number) => void
+}) {
+  const shown = String(Math.round(recoveredToDisplay(recoveredCm, unit) * 1000) / 1000)
+  const [text, setText] = useState(shown)
+  const [focused, setFocused] = useState(false)
+  useEffect(() => {
+    if (!focused) setText(shown)
+  }, [shown, focused])
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="recovered">Recovered length ({unit})</Label>
+      <Input
+        id="recovered"
+        value={focused ? text : shown}
+        onFocus={() => {
+          setFocused(true)
+          setText(shown)
+        }}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={() => {
+          setFocused(false)
+          const parsed = unit === 'in' ? parseInches(text) : parseCentimetres(text)
+          if (parsed == null) {
+            setText(shown)
+            return
+          }
+          onChange(displayToRecovered(parsed, unit))
         }}
       />
     </div>

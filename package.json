@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check-scale": "node scripts/check-scale.mjs"
+    "check-scale": "node --experimental-strip-types scripts/check-scale.mjs",
+    "check-units": "node --experimental-strip-types scripts/check-units.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -17,11 +18,16 @@
     "@freesewing/config": "4.10.2",
     "@freesewing/core": "4.10.2",
     "@freesewing/library": "4.10.2",
+    "@freesewing/lily": "4.10.2",
     "@freesewing/models": "4.10.2",
+    "@freesewing/paco": "4.10.2",
     "@freesewing/plugin-bust": "4.10.2",
     "@freesewing/plugin-i18n": "4.10.2",
     "@freesewing/plugin-theme": "4.10.2",
     "@freesewing/plugin-transform": "4.10.2",
+    "@freesewing/shelly": "4.10.2",
+    "@freesewing/snapseries": "4.10.2",
+    "@freesewing/titan": "4.10.2",
     "@tailwindcss/vite": "^4.3.5",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",

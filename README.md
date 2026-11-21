@@ -12,7 +12,17 @@ npm install && npm run dev
 
 The dev server binds `0.0.0.0:4721`. Open [http://127.0.0.1:4721](http://127.0.0.1:4721).
 
-`npm run check-scale` checks the millimetre-to-point conversion, Bibi’s chest-ease config, and that a 100 mm SVG line is drawn under a scale of `72/25.4`. `npm run build` typechecks and builds the static app.
+`npm run check-scale` checks the millimetre-to-point conversion, Bibi’s chest-ease config, and that a 100 mm SVG line is drawn under a scale of `72/25.4`. `npm run check-units` checks fractional inches and the 4-way length formula. `npm run build` typechecks and builds the static app.
+
+## Units
+
+One control in the header, inches or centimetres, saved in `localStorage`. A browser with no saved preference opens in inches. If a preference is already stored as centimetres, that choice stays.
+
+Lengths are stored as millimetres (shoulder slope stays in degrees). The screen shows the conversion of that millimetre value. Switching units does not write a second copy. Inches accept decimals and fractions: `3/8`, `5/8`, `1/4`, `1 1/2`, and `1-1/2`. Centimetres stay decimal. A fresh seam allowance is 3/8 in, which is 9.525 mm. FreeSewing still receives `settings.sa` in millimetres.
+
+The stretch test mark is 4 in or 10 cm. Those are the same nominal mark, not a 25.4 conversion. Poor recovery is 4.2 in on the 4 in mark, the same ratio as 10.5 cm on the 10 cm mark. Stretch percentages and ease percentages do not change unit.
+
+Checked in the app: seam allowance `3/8` becomes `0.9525` cm and returns to `3/8`. A body measurement (`40.709` in, the size 38 chest) returns to the same inches after a centimetre round trip.
 
 ## Packages
 
@@ -139,7 +149,7 @@ Percent options are shown as percents. FreeSewing stores them as fractions (`2` 
 | `ribbingHeight` | percent of back-waist length + waist-to-hips | 10 | 5 | 15 |
 | `bindingHeight` | percent of that same sum; snaps to 10, 15, 20, 25, or 30 mm | 2.5 | 1.25 | 5 |
 
-There is no Bibi option named seam allowance. Seam allowance is the pattern setting `sa`, in millimetres (`part.shorthand()` uses `settings.sa || 0`). This app defaults `sa` to 10 and shows that value. Set it to 0 and the draft has no seam allowance.
+There is no Bibi option named seam allowance. Seam allowance is the pattern setting `sa`, in millimetres (`part.shorthand()` uses `settings.sa || 0`). A fresh browser sends 9.525 mm, shown as 3/8 in. Clear the field and the draft still keeps the last saved allowance; set a length of 0 if you want no seam allowance.
 
 Names from the brief that are not a single option:
 
@@ -208,9 +218,56 @@ SOFTWARE.
 
 The same notice is in the app, under the preview. Pattern geometry is Copyright Joost De Cock and FreeSewing contributors, used under that license. Source: [FreeSewing LICENSE](https://codeberg.org/freesewing/freesewing/src/branch/develop/LICENSE).
 
+## Shelly
+
+`@freesewing/shelly` 4.10.2, a raglan shirt. Required measurements from its config: `biceps`, `neck`, `chest`, `hips`, `waistToHips`, `hpsToWaistBack`, `waistToArmpit`, `wrist`, `shoulderToWrist`. Optional: `highBust`.
+
+Exposed options and package defaults:
+
+| Option | Default | Min | Max |
+| --- | --- | --- | --- |
+| `neckEase` | 50 | −30 | 150 |
+| `chestEase` | 0 | −40 | 50 |
+| `hipsEase` | 0 | −30 | 75 |
+| `armpitEase` | 15 | −20 | 50 |
+| `sleeveEase` | 0 | −30 | 50 |
+| `wristEase` | 0 | −30 | 50 |
+| `neckBalance` | 40 | 0 | 80 |
+| `straightSides` | on | | |
+| `bodyLength` | 120 | 20 | 300 |
+| `sleeveLength` | 20 | 0 | 125 |
+| `neckbandLength` | 80 | 50 | 100 |
+| `neckbandWidth` | 7.5 | 0 | 50 |
+| `hemWidth` | 200 | 0 | 800 |
+| `sleeveHem` | 200 | 0 | 800 |
+| `sideShape` | 0 | −20 | 20 |
+| `raglanScoopLength` | 20 | 0 | 50 |
+| `raglanScoopMagnitude` | 6 | 0 | 20 |
+
+`straightSides` defaults on, and while it is on Shelly ignores `hipsEase`. `armholeTweakFactor` (1.1) and `bicepsPosition` (0.2) stay at the package constants.
+
+`neckbandLength` is Shelly’s own option: the drafted rectangle is that percent of `(neckLengthFront + neckLengthBack + neckLengthSide)`. The starting-length helper is separate: that same opening × your percent (default 85) + 2 × seam allowance. It is a cut length, not the finished band.
+
+## Lily leggings
+
+`@freesewing/lumira` 4.10.2 exists and has an `ease` option, not a fabric-stretch option. `@freesewing/lily` 4.10.2 has `fabricStretch` (`pct: 40`, min 0, max 50), so the leggings block is Lily. Lily also needs `@freesewing/titan`, `@freesewing/paco`, and `@freesewing/snapseries` at 4.10.2.
+
+Required measurements: `crossSeam`, `crossSeamFront`, `knee`, `seat`, `seatBack`, `waist`, `waistBack`, `waistToFloor`, `waistToKnee`, `waistToHips`, `waistToSeat`, `waistToUpperLeg`, `ankle`, `heel`.
+
+Exposed besides `fabricStretch`: `waistEase` (default −4, min −20, max 0), `seatEase` (same), `kneeEase` (same), `waistHeight` (50, 0 to 100), `waistbandWidth` (3, 1 to 6). Lily’s own note says those three eases should be `fabricStretch / −10`. At the default 40% stretch that is −4%, which matches the ease defaults. The button sets them that way. Curve, gusset, and waist-angle options stay at the package defaults.
+
+## 4-way vertical reduction
+
+Only when the selected fabric is 4-way. Lengthwise stretch fraction `S`, `stretchToScale(S) = 1/(1+S)`. Full reduction is `1 − scale`. The working reduction is half of that, times the same recovery factor as the ease card (10.2 cm or less on the 10 cm mark keeps it, 11 cm or more sends it to zero, and 10.5 cm is partway toward zero).
+
+On Lily the percent is sent as the real `lengthReduction` option. Lily shortens the leg to `(1 − lengthReduction) × waistToFloor`. The screen shows that percent and both lengths. On Bibi and Shelly there is no `lengthReduction` option, so the same percent shortens the vertical measurements (back waist, waist to hips, shoulder to wrist, and the other straight lengths the design uses) before the draft. Circumferences are not scaled. The original and applied length of each one is listed. It is a starting point to confirm on a muslin.
+
+## Projector PDF
+
+Beside the A0, A4, and Letter files. One page, pattern at 1:1, 50 mm margins, thick cut lines, and a calibration grid (1 in when the app is in inches, 5 cm when it is in centimetres). Light or dark background. The 5 cm square and the 2 in square are still true sizes. Project or print at 100%.
+
 ## Next
 
 Not in this build:
 
-- Phase 2: Shelly (`@freesewing/shelly`), Lily (`@freesewing/lily`) or Lumira for leggings, vertical length reduction for 4-way fabrics, projector PDF.
 - Phase 3: an original dartless tube/pencil skirt and a wrap top. An optional local Ollama helper could come later.

@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LengthField } from '@/components/LengthField'
 import { MEASUREMENT_COPY, MEASUREMENT_ORDER } from '@/lib/copy'
-import { exampleMeasurements } from '@/lib/bibi'
+import { exampleMeasurements, type DesignId } from '@/lib/bibi'
 import type { Unit } from '@/lib/units'
-import { fromMm, toMm } from '@/lib/units'
 
 export function MeasurePanel({
   unit,
-  onUnit,
+  design,
   required,
   optional,
   measurements,
@@ -17,7 +17,7 @@ export function MeasurePanel({
   onExample,
 }: {
   unit: Unit
-  onUnit: (unit: Unit) => void
+  design: DesignId
   required: string[]
   optional: string[]
   measurements: Record<string, number | null>
@@ -38,18 +38,9 @@ export function MeasurePanel({
       <header className="space-y-1">
         <h2 className="font-heading text-lg font-semibold">Measurements</h2>
         <p className="text-sm text-muted-foreground">
-          These are the measurements Bibi’s config asks for. Stored in millimetres. The toggle only changes the display.
+          These are the measurements {design === 'bibi' ? 'Bibi' : design === 'shelly' ? 'Shelly' : 'Lily'} asks for. Lengths are stored in millimetres and shown in {unit === 'in' ? 'inches' : 'centimetres'}. Shoulder slope stays in degrees.
         </p>
       </header>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm">Unit</span>
-        <Button type="button" size="sm" variant={unit === 'cm' ? 'default' : 'outline'} onClick={() => onUnit('cm')}>
-          Centimetres
-        </Button>
-        <Button type="button" size="sm" variant={unit === 'in' ? 'default' : 'outline'} onClick={() => onUnit('in')}>
-          Inches
-        </Button>
-      </div>
       {required.length === 0 ? (
         <p className="text-sm text-destructive">Bibi did not report any required measurements. The package did not load.</p>
       ) : (
@@ -88,7 +79,7 @@ export function MeasurePanel({
             type="button"
             variant="outline"
             onClick={() => {
-              onExample(exampleMeasurements())
+              onExample(exampleMeasurements(design))
               setConfirmExample(false)
             }}
           >
@@ -119,47 +110,44 @@ function MeasureField({
 }) {
   const copy = MEASUREMENT_COPY[name]
   const degrees = name === 'shoulderSlope'
-  const shown =
-    value == null
-      ? ''
-      : degrees
-        ? String(Math.round(value * 10) / 10)
-        : String(roundDisplay(fromMm(value, unit), unit))
+  if (!degrees) {
+    return (
+      <div className="space-y-1">
+        <LengthField
+          id={`m-${name}`}
+          label={`${copy?.title ?? name}${required ? '' : ' (optional)'}`}
+          mm={value}
+          unit={unit}
+          onMm={(mm) => onChange(name, mm)}
+          hint={copy?.how ?? 'This design asks for this length.'}
+        />
+      </div>
+    )
+  }
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={`m-${name}`}>
-        {copy?.title ?? name}
-        {required ? '' : ' (optional)'}
-      </Label>
+      <Label htmlFor={`m-${name}`}>{copy?.title ?? name}</Label>
       <div className="flex items-center gap-2">
         <Input
           id={`m-${name}`}
           className="max-w-36"
           type="number"
           inputMode="decimal"
-          step={degrees ? 0.5 : unit === 'cm' ? 0.1 : 0.125}
+          step={0.5}
           min={0}
-          value={shown}
+          value={value == null ? '' : String(Math.round(value * 10) / 10)}
           onChange={(event) => {
             if (event.target.value === '') {
               onChange(name, null)
               return
             }
             const next = Number(event.target.value)
-            if (!Number.isFinite(next)) return
-            onChange(name, degrees ? next : toMm(next, unit))
+            if (Number.isFinite(next)) onChange(name, next)
           }}
         />
-        <span className="text-sm text-muted-foreground">{degrees ? 'degrees' : unit}</span>
+        <span className="text-sm text-muted-foreground">degrees</span>
       </div>
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        {copy?.how ?? 'Bibi asks for this measurement. Enter it in the unit shown.'}
-      </p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{copy?.how}</p>
     </div>
   )
-}
-
-function roundDisplay(value: number, unit: Unit) {
-  const digits = unit === 'cm' ? 2 : 3
-  return Math.round(value * 10 ** digits) / 10 ** digits
 }

@@ -4,7 +4,17 @@ declare module '@freesewing/core' {
 
 declare module '@freesewing/bibi' {
   export const Bibi: BibiConstructor
-  export const i18n: { en: { p?: Record<string, string> } }
+  export const i18n: { en: { p?: Record<string, string>; s?: Record<string, string> } }
+}
+
+declare module '@freesewing/shelly' {
+  export const Shelly: BibiConstructor
+  export const i18n: { en: { p?: Record<string, string>; s?: Record<string, string> } }
+}
+
+declare module '@freesewing/lily' {
+  export const Lily: BibiConstructor
+  export const i18n: { en: { p?: Record<string, string>; s?: Record<string, string> } }
 }
 
 declare module '@freesewing/plugin-theme' {
