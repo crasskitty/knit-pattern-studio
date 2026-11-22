@@ -14,6 +14,12 @@ The dev server binds `0.0.0.0:4721`. Open [http://127.0.0.1:4721](http://127.0.0
 
 `npm run check-scale` checks the millimetre-to-point conversion, Bibi’s chest-ease config, and that a 100 mm SVG line is drawn under a scale of `72/25.4`. `npm run check-units` checks fractional inches and the 4-way length formula. `npm run build` typechecks and builds the static app.
 
+## Test build
+
+The public test build is [https://crasskitty.github.io/knit-pattern-studio/](https://crasskitty.github.io/knit-pattern-studio/).
+
+It is this same static app. Measurements, fabrics, and options still stay in that browser’s `localStorage`. `npm run build:pages` builds it with the GitHub Pages base path `/knit-pattern-studio/`. The Pages workflow on `main` publishes `dist` to the `gh-pages` branch.
+
 ## Units
 
 One control in the header, inches or centimetres, saved in `localStorage`. A browser with no saved preference opens in inches. If a preference is already stored as centimetres, that choice stays.
