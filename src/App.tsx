@@ -4,6 +4,7 @@ import { FabricPanel } from '@/components/FabricPanel'
 import { MeasurePanel } from '@/components/MeasurePanel'
 import { PreviewColumn } from '@/components/PreviewColumn'
 import { Button } from '@/components/ui/button'
+import { FINISHED_EXAMPLES } from '@/lib/examples'
 import {
   DESIGNS,
   chestEaseFloor,
@@ -133,18 +134,28 @@ export default function App() {
       )}
       <div className="studio-shell">
         <aside className="studio-controls space-y-8 px-4 py-4">
-          <div className="flex flex-wrap gap-2">
-            {DESIGNS.map((item) => (
-              <Button
-                key={item.id}
-                type="button"
-                variant={design === item.id ? 'default' : 'outline'}
-                onClick={() => patch({ design: item.id })}
-              >
-                {item.title}
-                <span className="ml-1 text-xs opacity-80">{item.blurb}</span>
-              </Button>
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            {DESIGNS.map((item) => {
+              const selected = design === item.id
+              const example = FINISHED_EXAMPLES[item.id]
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => patch({ design: item.id })}
+                  className={`overflow-hidden rounded-xl border bg-card text-left shadow-sm ${
+                    selected ? 'border-primary ring-2 ring-primary/30' : 'hover:bg-muted'
+                  }`}
+                >
+                  <img src={example.src} alt="" className="aspect-[2/3] w-full object-cover" />
+                  <span className="block px-2 py-1.5">
+                    <span className="block text-sm font-medium">{item.title}</span>
+                    <span className="block text-xs text-muted-foreground">{item.blurb}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
           <FabricPanel
             fabrics={state.fabrics}
