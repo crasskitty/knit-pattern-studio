@@ -8,6 +8,7 @@ import { downloadBlob, downloadText } from '@/lib/download'
 import { buildProjectorPdf, buildTiledPdf, type Paper } from '@/lib/export-pdf'
 import { flattenSvg } from '@/lib/flatten-svg'
 import type { DesignId, DraftResult } from '@/lib/bibi'
+import { FINISHED_EXAMPLES } from '@/lib/examples'
 import { PAGE_MM, planTiles } from '@/lib/scale.mjs'
 import { formatLength, formatPercent, type Unit } from '@/lib/units'
 
@@ -42,6 +43,7 @@ export function PreviewColumn({
 }) {
   const [exporting, setExporting] = useState<Paper | 'svg' | 'projector' | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  const example = FINISHED_EXAMPLES[design]
   const opening = result?.openingMm ?? 0
   const band = opening * (neckbandPercent / 100) + 2 * saMm
   const at80 = opening * 0.8 + 2 * saMm
@@ -84,6 +86,14 @@ export function PreviewColumn({
 
   return (
     <div className="flex min-h-[50vh] flex-col gap-4 p-4 lg:h-full lg:overflow-auto">
+      <figure className="flex gap-3 rounded-xl border bg-card p-3 shadow-sm">
+        <img src={example.src} alt={example.alt} className="h-40 w-28 shrink-0 rounded-lg object-cover" />
+        <figcaption className="min-w-0 space-y-1">
+          <p className="text-xs tracking-wide text-muted-foreground uppercase">Finished example</p>
+          <p className="font-heading text-base font-semibold">What this pattern looks like made up</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{example.caption}</p>
+        </figcaption>
+      </figure>
       <div className="pattern-frame max-h-[70vh] min-h-64 flex-1 overflow-auto rounded-xl border bg-white shadow-sm lg:max-h-none">
         {drafting && !result && (
           <p className="p-6 text-sm text-muted-foreground">Drafting Bibi…</p>
